@@ -12,13 +12,15 @@ permissions:
 
 jobs:
   review:
-    # Skip silently until the maintainer adds the secret.
-    if: ${{ secrets.ARGUS_API_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # Skip silently until the maintainer adds the secret.
+      # NOTE: `secrets` is not allowed in a job-level `if` — GitHub rejects
+      # the workflow file outright. Step-level `if` is the supported spot.
       - uses: ./
+        if: ${{ secrets.ARGUS_API_KEY != '' }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           api-key: ${{ secrets.ARGUS_API_KEY }}
