@@ -1,0 +1,25 @@
+# Dogfood: Argus reviews its own PRs. Needs the ARGUS_API_KEY repo secret.
+name: argus-review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  review:
+    # Skip silently until the maintainer adds the secret.
+    if: ${{ secrets.ARGUS_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          api-key: ${{ secrets.ARGUS_API_KEY }}
+          guidelines: .argus.yml
