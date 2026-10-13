@@ -1,0 +1,71 @@
+name: "Argus PR review"
+description: "Local-first AI code review for pull requests"
+branding:
+  icon: "eye"
+  color: "blue"
+
+inputs:
+  github-token:
+    description: "GitHub token for reading the PR and posting comments"
+    required: true
+    default: ${{ github.token }}
+  api-key:
+    description: "Model provider API key (or set ARGUS_API_KEY as a secret)"
+    required: true
+  model:
+    description: "Model id (or set ARGUS_MODEL)"
+    required: false
+    default: ""
+  provider:
+    description: "Model provider: anthropic or openai-compatible"
+    required: false
+    default: "anthropic"
+  guidelines:
+    description: "Path to the review config file"
+    required: false
+    default: ".argus.yml"
+  fail-on:
+    description: "Severity threshold that fails the check (critical|high|medium|low|nit|none)"
+    required: false
+    default: "high"
+  post-comment:
+    description: "Post the Markdown report as a PR comment"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install argus
+      shell: bash
+      run: pip install "git+https://github.com/balajeeasish/argus.git"
+
+    - name: Review PR
+      shell: bash
+      env:
+        ARGUS_API_KEY: ${{ inputs.api-key }}
+        ARGUS_MODEL: ${{ inputs.model }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        POST_FLAG=""
+        if [ "${{ inputs.post-comment }}" = "true" ]; then POST_FLAG="--post-comment"; fi
+        MODEL_FLAG=""
+        if [ -n "${{ inputs.model }}" ]; then MODEL_FLAG="--model ${{ inputs.model }}"; fi
+        argus review \
+          --repo "${{ github.repository }}" \
+          --pr "${{ github.event.pull_request.number }}" \
+          --provider "${{ inputs.provider }}" \
+          --guidelines "${{ inputs.guidelines }}" \
+          --fail-on "${{ inputs.fail-on }}" \
+          $POST_FLAG $MODEL_FLAG \
+          --format sarif --output argus.sarif
+
+    - name: Upload SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: argus.sarif
